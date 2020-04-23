@@ -121,14 +121,14 @@ void DeviceINQ::Init(Local<Object> target) {
     t->InstanceTemplate()->SetInternalFieldCount(1);
     t->SetClassName(Nan::New("DeviceINQ").ToLocalChecked());
 
+    Isolate *isolate = target->GetIsolate();
+    Local<Context> ctx = isolate->GetCurrentContext();
+
     Nan::SetPrototypeMethod(t, "inquireSync", InquireSync);
     Nan::SetPrototypeMethod(t, "inquire", Inquire);
     Nan::SetPrototypeMethod(t, "findSerialPortChannel", SdpSearch);
     Nan::SetPrototypeMethod(t, "listPairedDevices", ListPairedDevices);
-    target->Set(Nan::New("DeviceINQ").ToLocalChecked(), t->GetFunction());
-    target->Set(Nan::New("DeviceINQ").ToLocalChecked(), t->GetFunction());
-    target->Set(Nan::New("DeviceINQ").ToLocalChecked(), t->GetFunction());
-    target->Set(Nan::New("DeviceINQ").ToLocalChecked(), t->GetFunction());
+    target->Set(ctx, Nan::New("DeviceINQ").ToLocalChecked(), t->GetFunction(ctx).ToLocalChecked());
 }
 
 bt_inquiry DeviceINQ::doInquire() {
@@ -333,13 +333,15 @@ NAN_METHOD(DeviceINQ::SdpSearch) {
     }
 
     sdp_baton_t *baton = new sdp_baton_t();
-    String::Utf8Value address(info[0]);
+
+    Local<Function> cb = info[1].As<Function>();
+    String::Utf8Value address(cb->GetIsolate(), info[0]);
     if (strcpy_s(baton->address, *address) != 0) {
         delete baton;
         return Nan::ThrowTypeError("Address (first argument) length is invalid");
     }
 
-    Local<Function> cb = info[1].As<Function>();
+
     DeviceINQ *inquire = Nan::ObjectWrap::Unwrap<DeviceINQ>(info.This());
 
     baton->inquire = inquire;
@@ -413,8 +415,8 @@ NAN_METHOD(DeviceINQ::ListPairedDevices) {
                         : Nan::New(address);
 
                     Local<Object> deviceObj = Nan::New<v8::Object>();
-                    deviceObj->Set(Nan::New("name").ToLocalChecked(), Nan::New(querySet->lpszServiceInstanceName).ToLocalChecked());
-                    deviceObj->Set(Nan::New("address").ToLocalChecked(), addressString.ToLocalChecked());
+                    deviceObj->Set(Nan::GetCurrentContext(), Nan::New("name").ToLocalChecked(), Nan::New(querySet->lpszServiceInstanceName).ToLocalChecked());
+                    deviceObj->Set(Nan::GetCurrentContext(), Nan::New("address").ToLocalChecked(), addressString.ToLocalChecked());
 
                     Local<Array> servicesArray = Local<Array>(Nan::New<Array>());
                     {
@@ -443,9 +445,9 @@ NAN_METHOD(DeviceINQ::ListPairedDevices) {
                                 if (lookupServiceError2 != SOCKET_ERROR ) {
                                     int port = (int)((SOCKADDR_BTH *)querySet2->lpcsaBuffer->RemoteAddr.lpSockaddr)->port;
                                     Local<Object> serviceObj = Nan::New<v8::Object>();
-                                    serviceObj->Set(Nan::New("channel").ToLocalChecked(), Nan::New(port));
-                                    serviceObj->Set(Nan::New("name").ToLocalChecked(), Nan::New(querySet2->lpszServiceInstanceName).ToLocalChecked());
-                                    servicesArray->Set(place++, serviceObj);
+                                    serviceObj->Set(Nan::GetCurrentContext(), Nan::New("channel").ToLocalChecked(), Nan::New(port));
+                                    serviceObj->Set(Nan::GetCurrentContext(), Nan::New("name").ToLocalChecked(), Nan::New(querySet2->lpszServiceInstanceName).ToLocalChecked());
+                                    servicesArray->Set(Nan::GetCurrentContext(), place++, serviceObj);
                                 } else {
                                     int lookupServiceErrorNumber = WSAGetLastError();
                                     if (lookupServiceErrorNumber == WSAEFAULT) {
@@ -474,8 +476,8 @@ NAN_METHOD(DeviceINQ::ListPairedDevices) {
                         free(querySet2);
                     }
 
-                    deviceObj->Set(Nan::New("services").ToLocalChecked(), servicesArray);
-                    resultArray->Set(i, deviceObj);
+                    deviceObj->Set(Nan::GetCurrentContext(), Nan::New("services").ToLocalChecked(), servicesArray);
+                    resultArray->Set(Nan::GetCurrentContext(), i, deviceObj);
                     i = i+1;
                 }
             } else {
@@ -519,7 +521,7 @@ NAN_METHOD(DeviceINQ::ListPairedDevices) {
     Local<Value> argv[1] = {
         resultArray
     };
-    cb->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+    cb->Call(Nan::GetCurrentContext(), Nan::GetCurrentContext()->Global(), 1, argv);
 
     return;
 }

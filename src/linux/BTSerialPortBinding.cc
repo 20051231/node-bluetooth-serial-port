@@ -233,12 +233,13 @@ void BTSerialPortBinding::Init(Local<Object> target) {
     t->InstanceTemplate()->SetInternalFieldCount(1);
     t->SetClassName(Nan::New("BTSerialPortBinding").ToLocalChecked());
 
+    Isolate *isolate = target->GetIsolate();
+    Local<Context> ctx = isolate->GetCurrentContext();
+
     Nan::SetPrototypeMethod(t, "write", Write);
     Nan::SetPrototypeMethod(t, "read", Read);
     Nan::SetPrototypeMethod(t, "close", Close);
-    target->Set(Nan::New("BTSerialPortBinding").ToLocalChecked(), t->GetFunction());
-    target->Set(Nan::New("BTSerialPortBinding").ToLocalChecked(), t->GetFunction());
-    target->Set(Nan::New("BTSerialPortBinding").ToLocalChecked(), t->GetFunction());
+    target->Set(Nan::New("BTSerialPortBinding").ToLocalChecked(), t->GetFunction(ctx).ToLocalChecked());
 }
 
 BTSerialPortBinding::BTSerialPortBinding() :
@@ -258,9 +259,9 @@ NAN_METHOD(BTSerialPortBinding::New) {
         return Nan::ThrowError(usage);
     }
 
-    String::Utf8Value address(info[0]);
+    String::Utf8Value address(info.GetIsolate(), info[0]);
 
-    int channelID = info[1]->Int32Value();
+    int channelID = info[1]->Int32Value(Nan::GetCurrentContext()).ToChecked();
     if (channelID <= 0) {
         return Nan::ThrowTypeError("ChannelID should be a positive int value.");
     }

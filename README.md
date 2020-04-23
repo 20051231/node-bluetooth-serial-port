@@ -1,5 +1,7 @@
 # Bluetooth serial port communication for Node.js
 
+> _DEPRECATED_ Currently I have no plans to add support for nodejs version 1.13 and up. If you want to help out by adding support please contact me. It was a great experience maintaining this project for almost 8 years. It was great to see people step in to improve this project. Thank you all!
+
 [![Build Status](https://travis-ci.org/eelcocramer/node-bluetooth-serial-port.svg)](https://travis-ci.org/eelcocramer/node-bluetooth-serial-port)
 [![Build status](https://ci.appveyor.com/api/projects/status/4p1r3ddoid98qc7k?svg=true)](https://ci.appveyor.com/project/eelcocramer/node-bluetooth-serial-port)
 
@@ -9,11 +11,11 @@ If you have any problems make sure to [checkout the FAQ](https://github.com/eelc
 
 ## New in the last release
 
-* Fixes an error where the module would not return correctly when parameter assertion would fail.
+* Changes node version to `lts` in the Dockerfile
 
 Check the [release notes](RELEASE_NOTES.md) for an overview of the change history.
 
-## Pre-requests on Linux
+## Prerequisites on Linux
 
 * Needs Bluetooth development packages to build
 
@@ -41,11 +43,11 @@ sudo systemctl daemon-reload
 sudo systemctl restart bluetooth
 ```
 
-## Pre-request on macOS
+## Prerequisites on macOS
 
 * Needs Xcode and Xcode command line tools installed.
 
-## Pre-request on Windows
+## Prerequisites on Windows
 
 * Needs Visual Studio (Visual C++) and its command line tools installed.
 * Needs Python 2.x installed and accessible from the command line path.

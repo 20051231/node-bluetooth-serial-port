@@ -327,13 +327,16 @@ void BTSerialPortBindingServer::Init(Local<Object> target) {
     t->InstanceTemplate()->SetInternalFieldCount(1);
     t->SetClassName(Nan::New("BTSerialPortBindingServer").ToLocalChecked());
 
+    Isolate *isolate = target->GetIsolate();
+    Local<Context> ctx = isolate->GetCurrentContext();
+
     Nan::SetPrototypeMethod(t, "write", Write);
     Nan::SetPrototypeMethod(t, "read", Read);
     Nan::SetPrototypeMethod(t, "close", Close);
     Nan::SetPrototypeMethod(t, "disconnectClient", DisconnectClient);
     Nan::SetPrototypeMethod(t, "isOpen", IsOpen);
 
-    target->Set(Nan::New("BTSerialPortBindingServer").ToLocalChecked(), t->GetFunction());
+    target->Set(Nan::New("BTSerialPortBindingServer").ToLocalChecked(), t->GetFunction(ctx).ToLocalChecked());
 }
 
 BTSerialPortBindingServer::BTSerialPortBindingServer() :
@@ -378,15 +381,18 @@ NAN_METHOD(BTSerialPortBindingServer::New) {
     rfcomm->Wrap(info.This());
 
     Local<Object> jsOptions = Local<Object>::Cast(info[2]);
-    Local<Array> properties = jsOptions->GetPropertyNames();
+    Isolate *isolate = jsOptions->GetIsolate();
+    Local<Context> ctx = isolate->GetCurrentContext();
+
+    Local<Array> properties = jsOptions->GetPropertyNames(ctx).ToLocalChecked();
     int n = properties->Length();
     std::map<std::string, std::string> options;
 
     for (int i = 0; i < n ; i++) {
         Local<Value>  property = properties->Get(Nan::New<Integer>(i));
-        string propertyName = std::string(*String::Utf8Value(property));
+        string propertyName = std::string(*String::Utf8Value(isolate, property));
         Local<Value> optionValue = jsOptions->Get(property);
-        options[propertyName] = std::string(*String::Utf8Value(optionValue));
+        options[propertyName] = std::string(*String::Utf8Value(isolate, optionValue));
     }
 
     if(!str2uuid(options["uuid"].c_str(), &baton->uuid)){
@@ -562,13 +568,19 @@ NAN_METHOD(BTSerialPortBindingServer::Close) {
 
     rfcomm->rep[0] = rfcomm->rep[1] = 0;
 
+    // Close the connection with the SDP server
+    if (rfcomm->mSdpSession){
+        sdp_close(rfcomm->mSdpSession);
+        rfcomm->mSdpSession = nullptr;
+    }
+
     // close client socket
     rfcomm->CloseClientSocket();
 
-    // close server socket
+    // Close server socket
     if (rfcomm->s != 0) {
         close(rfcomm->s);
-        rfcomm->s = 0;
+        rfcomm->s = 0; // Inform `ClientWorker` to stop `pselect` loop to accept connections if ongoing.
     }
 
     // Call unref so we can be garbage collected (rest of cleanup is in the destructor)
@@ -647,7 +659,33 @@ void BTSerialPortBindingServer::ClientWorker::Execute(){
         0x00
     };
     socklen_t clientAddrLen = sizeof(clientAddress);
+
+    int select_status;
+    while (mBaton->rfcomm->s != 0) {
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(mBaton->rfcomm->s, &fds);
+
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 333;
+
+        select_status = select(mBaton->rfcomm->s + 1, &fds, NULL, NULL, &timeout);
+        if (select_status > 0) {
+            break; 
+        }
+        else if (select_status == -1) {
+            return Nan::ThrowError("error pselect'ing socket!");
+        }
+    }
+
+    if (mBaton->rfcomm->s == 0) {
+        // In middle of closing
+        return;
+    }
+
     mBaton->rfcomm->mClientSocket = accept(mBaton->rfcomm->s, (struct sockaddr *)&clientAddress, &clientAddrLen);
+
     ba2str(&clientAddress.rc_bdaddr, mBaton->clientAddress);
 }
 

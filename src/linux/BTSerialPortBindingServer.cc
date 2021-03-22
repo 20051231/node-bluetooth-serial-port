@@ -300,7 +300,7 @@ void BTSerialPortBindingServer::EIO_AfterRead(uv_work_t *req) {
     }
 
     Local<Object> globalObj = Nan::GetCurrentContext()->Global();
-    Local<Function> bufferConstructor = Local<Function>::Cast(globalObj->Get(Nan::New("Buffer").ToLocalChecked()));
+    Local<Function> bufferConstructor = Local<Function>::Cast(globalObj->Get(Nan::GetCurrentContext(), Nan::New("Buffer").ToLocalChecked()).ToLocalChecked());
     Local<Value> constructorArgs[1] = { Nan::New<v8::Integer>(baton->size) };
     Local<Object> resultBuffer = Nan::NewInstance(bufferConstructor, 1, constructorArgs).ToLocalChecked();
     memcpy(Buffer::Data(resultBuffer), baton->result, baton->size);
@@ -336,7 +336,7 @@ void BTSerialPortBindingServer::Init(Local<Object> target) {
     Nan::SetPrototypeMethod(t, "disconnectClient", DisconnectClient);
     Nan::SetPrototypeMethod(t, "isOpen", IsOpen);
 
-    target->Set(Nan::New("BTSerialPortBindingServer").ToLocalChecked(), t->GetFunction(ctx).ToLocalChecked());
+    target->Set(Nan::GetCurrentContext(), Nan::New("BTSerialPortBindingServer").ToLocalChecked(), t->GetFunction(ctx).ToLocalChecked());
 }
 
 BTSerialPortBindingServer::BTSerialPortBindingServer() :
@@ -389,9 +389,9 @@ NAN_METHOD(BTSerialPortBindingServer::New) {
     std::map<std::string, std::string> options;
 
     for (int i = 0; i < n ; i++) {
-        Local<Value>  property = properties->Get(Nan::New<Integer>(i));
+        Local<Value>  property = properties->Get(Nan::GetCurrentContext(), Nan::New<Integer>(i)).ToLocalChecked();
         string propertyName = std::string(*String::Utf8Value(isolate, property));
-        Local<Value> optionValue = jsOptions->Get(property);
+        Local<Value> optionValue = jsOptions->Get(Nan::GetCurrentContext(), property).ToLocalChecked();
         options[propertyName] = std::string(*String::Utf8Value(isolate, optionValue));
     }
 
